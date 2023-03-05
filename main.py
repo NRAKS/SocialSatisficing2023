@@ -1,11 +1,34 @@
 
 import numpy as np
 import sys
+
+import model
+import env
+
 from copy import deepcopy
 
+# hyper parameter
+lr = 0.1
+dr = 0.9
+aleph = 0.0
+zeta = 0.1
+tau_alpha = 0.1
+tau_gamma = 0.9
+
+N_agent = 1
+
+SIMULATION_TIMES = 1
+EPISODE_TIMES = 100
+
+env = env.SuboptimaWorld(row=9, col=9, start=int(9*9/2))
+
 def train_Q(player, env, SIMULATION_TIMES, EPISODE_TIMES, max_step):
+    player = []
+    for _ in range(N_agent):
+        player.append(model(lr, dr, aleph, zeta, tau_alpha, tau_gamma, env.num_state))
     reward_graph = np.zeros((len(player), EPISODE_TIMES))
     step_graph = np.zeros((len(player), EPISODE_TIMES))
+    
     # Q_heat = np.zeros((len(player), env.num_state, env.num_action))
     # state_count = np.zeros((len(player), env.num_state))
 
@@ -41,7 +64,7 @@ def train_Q(player, env, SIMULATION_TIMES, EPISODE_TIMES, max_step):
                     step += 1
 
                     if done is True:
-                        player[n_agent].update_eps()
+                        # player[n_agent].update_eps()
                         step_graph[n_agent, n_epi] += step
                         break
             
