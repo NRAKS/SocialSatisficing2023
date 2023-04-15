@@ -8,7 +8,7 @@ class GlidWorld(object):
         self.start_state = start
         self.goal_state = goal
         self.num_state = row * col
-        self.num_action = 5
+        self.num_action = 4
         self.reward = 0
         self.done = False
 
@@ -76,7 +76,7 @@ class GlidWorld(object):
 
 class SuboptimaWorld(GlidWorld):
     def __init__(self, row, col, start, goal=None):
-        super.__init__(row, col, start, goal=None)
+        super().__init__(row, col, start, goal=None)
 
         self.world = np.zeros([row, col])
         list_reward = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -93,5 +93,5 @@ class SuboptimaWorld(GlidWorld):
     def evaluate_reward(self, state):
         row = self.state_to_row(state)
         col = self.state_to_col(state)
-        self.reward = self.world(row, col)
+        self.reward = self.world[row, col]
         return self.reward

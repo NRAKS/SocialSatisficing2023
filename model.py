@@ -58,7 +58,7 @@ class Sarsa(Q_learning):
 class RS(object):
     def __init__(
             self, learning_rate, discount_rate, reference,
-            tau_alpha, tau_gamma, num_state, num_action, policy="Q_learning"):
+            tau_alpha, tau_gamma, num_state, num_action):
         self.reference_init = reference
         self.reference = np.full(num_state, reference)
         self.tau_alpha = tau_alpha
@@ -69,34 +69,25 @@ class RS(object):
         self.tau_current = np.zeros((num_state, num_action))
         self.tau_post = np.zeros((num_state, num_action))
 
-        # 方策によってQ学習とsarsaを切り替える
-        if policy == "Q_learning":
-            self.policy = Q_learning(learning_rate, discount_rate,
+        self.value_func = Q_learning(learning_rate, discount_rate,
                                      num_state, num_action)
-        elif policy == "sarsa":
-            self.policy = Sarsa(learning_rate, discount_rate,
-                                num_state, num_action)
-        else:
-            sys.exit("Error")
 
-    def get_serect_action(self, current_state): 
-        Q = self.policy.get_Q()
+    def get_select_action(self, current_state): 
+        Q = self.value_func.get_Q()
         rs = (self.tau[current_state]
               * (Q[current_state]
               - self.reference[current_state]))
-
         idx = np.where(rs == max(rs))
-        serect_action = random.choice(idx[0])
-        return serect_action
+        select_action = random.choice(idx[0])
+        return select_action
 
     def update(
-            self, current_state, next_state,
-            current_action, reward, next_action=None):
-        self.policy.update_Q(current_state, next_state,
-                             current_action, reward, next_action)
+            self, current_state, current_action,
+            reward, next_state, next_action=None):
+        self.value_func.update_Q(current_state, next_state, current_action, reward, next_action)
         # τ値更新準備
-        max_next_state_Q = max(self.policy.get_Q()[next_state])
-        idx = np.where(self.policy.get_Q()[next_state] == max_next_state_Q)
+        max_next_state_Q = max(self.value_func.get_Q()[next_state])
+        idx = np.where(self.value_func.get_Q()[next_state] == max_next_state_Q)
         action_up = random.choice(idx[0])
         # τ値更新
         self.tau_current[current_state, current_action] += 1
@@ -109,7 +100,7 @@ class RS(object):
                                                    + self.tau_post[current_state, current_action])
 
     def init_params(self):
-        self.policy.init_params()
+        self.value_func.init_params()
         self.reference = np.full(self.num_state, self.reference_init)
         self.tau = np.zeros((self.num_state, self.num_action))
         self.tau_current = np.zeros((self.num_state, self.num_action))
@@ -118,31 +109,28 @@ class RS(object):
 
 class GRC(RS):
     def __init__(
-            self, learning_rate, discount_rate, reference, zeta,
-            tau_alpha, tau_gamma, num_state, num_action, policy):
+            self, learning_rate, discount_rate, reference,
+            tau_alpha, tau_gamma, EG_gamma, num_state, num_action):
         super().__init__(learning_rate, discount_rate, reference,
-                         tau_alpha, tau_gamma, num_state, num_action, policy)
+                         tau_alpha, tau_gamma, num_state, num_action)
         self.RG = reference
-        self.zeta = zeta
         self.EG = 0
         self.NG = 0
-        self.GRC_gamma = discount_rate
+        self.GRC_gamma = EG_gamma
         self.NG_R = 0
 
-    def get_serect_action(self, current_state):
+    def get_select_action(self, current_state):
         DG = min([self.EG - self.RG, 0])
-        Q = self.policy.get_Q()
+        Q = self.value_func.get_Q()
         max_Q = max(Q[current_state])
-        reference = max_Q - self.zeta * DG
+        reference = max_Q -  DG
         rs = {}
         rs[current_state] = (self.tau[current_state]
                              * (Q[current_state]
                              - reference))
         idx = np.where(rs[current_state] == max(rs[current_state]))
-
-        serect_action = random.choice(idx[0])
-
-        return serect_action
+        select_action = random.choice(idx[0])
+        return select_action
 
     # culculation EG
     def update_GRC_params(self, sum_reward):
@@ -155,6 +143,7 @@ class GRC(RS):
 
     def init_params(self):
         super().init_params()
+        self.RG = self.reference_init
         self.EG = 0
         self.NG = 0
 
@@ -163,14 +152,7 @@ class GRC(RS):
 
     # culculation RG
     def update_GRC_reference(self, R_up):
-        self.Rtmp = R_up
-
-        self.RG = ((self.Rtmp
-                   + self.GRC_gamma
-                   * (self.NG_R * self.RG))
-                   / (1 + self.GRC_gamma * self.NG_R))
-
-        self.NG_R = 1 + self.GRC_gamma * self.NG_R
+        self.RG = R_up
 
     def get_reference(self):
         return self.RG
